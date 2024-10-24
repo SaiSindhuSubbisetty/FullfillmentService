@@ -1,0 +1,42 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "./proto";
+
+service FulfillmentService {
+  rpc AssignOrder (AssignOrderRequest) returns (AssignOrderResponse);
+  rpc GetOrderStatus (GetOrderStatusRequest) returns (GetOrderStatusResponse);
+  rpc UpdateOrderStatus (UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+  rpc GetOrdersByDeliveryPerson (GetOrdersByDeliveryPersonRequest) returns (GetOrdersByDeliveryPersonResponse);
+}
+message AssignOrderRequest {
+  string orderId = 1;
+  string deliveryPersonId = 2;
+}
+message AssignOrderResponse {
+  string status = 1;
+}
+message GetOrderStatusRequest {
+  string orderId = 1;
+}
+message GetOrderStatusResponse {
+  string orderId = 1;
+  string status = 2;
+}
+message UpdateOrderStatusRequest {
+  string orderId = 1;
+  string status = 2;
+}
+message UpdateOrderStatusResponse {
+  string status = 1;
+}
+message GetOrdersByDeliveryPersonRequest {
+  string deliveryPersonId = 1;
+}
+message GetOrdersByDeliveryPersonResponse {
+  repeated Order orders = 1;
+}
+message Order {
+  string orderId = 1;
+  string status = 2;
+}
