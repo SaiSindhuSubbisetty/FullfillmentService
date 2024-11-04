@@ -18,12 +18,12 @@ func NewService(db *gorm.DB) *OrderService {
 
 func (s *OrderService) AssignOrder(ctx context.Context, req *pb.AssignOrderRequest) (*pb.AssignOrderResponse, error) {
 	var nearestDeliveryPerson DeliveryPerson
-	err := s.db.Raw(`
-        SELECT * FROM delivery_persons
-        WHERE status = 'AVAILABLE'
-        ORDER BY ST_Distance(location::geometry, ST_Point(40.748817, -73.985428)::geometry) ASC
-        LIMIT 1
-    `).Scan(&nearestDeliveryPerson).Error
+
+	err := s.db.Model(&DeliveryPerson{}).
+		Where("status = ?", "AVAILABLE").
+		Order("ST_Distance(location::geometry, ST_Point(40.748817, -73.985428)::geometry) ASC").
+		Limit(1).
+		First(&nearestDeliveryPerson).Error
 
 	if err != nil || nearestDeliveryPerson.DeliveryPersonID == "" {
 		return &pb.AssignOrderResponse{Status: "FAILED"}, fmt.Errorf("no available delivery person found")
@@ -69,24 +69,19 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrde
 		return nil, fmt.Errorf("failed to update order status")
 	}
 
+	var deliveryPerson DeliveryPerson
+	if err := s.db.First(&deliveryPerson, "delivery_person_id = ?", order.DeliveryPersonID).Error; err != nil {
+		return nil, fmt.Errorf("failed to find delivery person")
+	}
+
 	if req.Status == "DELIVERED" {
-		var deliveryPerson DeliveryPerson
-		if err := s.db.First(&deliveryPerson, "delivery_person_id = ?", order.DeliveryPersonID).Error; err != nil {
-			return nil, fmt.Errorf("failed to find delivery person")
-		}
 		deliveryPerson.Status = "AVAILABLE"
-		if err := s.db.Save(&deliveryPerson).Error; err != nil {
-			return nil, fmt.Errorf("failed to update delivery person status")
-		}
 	} else if req.Status == "IN_PROGRESS" {
-		var deliveryPerson DeliveryPerson
-		if err := s.db.First(&deliveryPerson, "delivery_person_id = ?", order.DeliveryPersonID).Error; err != nil {
-			return nil, fmt.Errorf("failed to find delivery person")
-		}
 		deliveryPerson.Status = "BUSY"
-		if err := s.db.Save(&deliveryPerson).Error; err != nil {
-			return nil, fmt.Errorf("failed to update delivery person status")
-		}
+	}
+
+	if err := s.db.Save(&deliveryPerson).Error; err != nil {
+		return nil, fmt.Errorf("failed to update delivery person status")
 	}
 
 	return &pb.UpdateOrderStatusResponse{Status: "UPDATED"}, nil
